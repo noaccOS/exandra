@@ -7,7 +7,7 @@ defmodule Exandra.SetTest do
     use Ecto.Schema
 
     schema "my_schema" do
-      field :my_set, Set, type: :uuid
+      field :my_set, Set, type: :binary_id
     end
   end
 
@@ -17,7 +17,7 @@ defmodule Exandra.SetTest do
              Set,
              %{
                field: :my_set,
-               type: :uuid,
+               type: :binary_id,
                schema: Schema
              }
            } = Schema.__schema__(:type, :my_set)
@@ -64,6 +64,12 @@ defmodule Exandra.SetTest do
     assert {:ok, MapSet.new([1])} == Set.cast(1, %{type: :integer})
     assert {:ok, MapSet.new([1])} == Set.cast([1], %{type: :integer})
     assert :error = Set.cast(:asd, nil)
+
+    assert {:ok, MapSet.new([[1, 2, 3], [4, 5, 6]])} ==
+             Set.cast([[1, 2, 3], [4, 5, 6]], %{type: {:array, :integer}})
+
+    assert {:ok, MapSet.new([MapSet.new([1, 2, 3]), MapSet.new([4, 5, 6])])} ==
+             Set.cast([[1, 2, 3], [4, 5, 6]], %{type: {:parameterized, Set, %{type: :integer}}})
   end
 
   test "equal?/3" do

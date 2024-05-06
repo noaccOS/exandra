@@ -8,9 +8,9 @@ defmodule Exandra.TupleTest do
              :parameterized,
              Tuple,
              %{
-               types: [:uuid, :integer, :string]
+               types: [:binary_id, :integer, :string]
              }
-           } = Ecto.ParameterizedType.init(Tuple, types: [:uuid, :integer, :string])
+           } = Ecto.ParameterizedType.init(Tuple, types: [:binary_id, :integer, :string])
   end
 
   @p_dump_type {:parameterized, Tuple, Tuple.params(:dump)}
@@ -23,7 +23,7 @@ defmodule Exandra.TupleTest do
     assert :self = Ecto.Type.embed_as(@p_self_type, :foo)
     assert :self = Ecto.Type.embed_as(@p_dump_type, :foo)
 
-    type = Ecto.ParameterizedType.init(Tuple, types: [:uuid, :integer, :string])
+    type = Ecto.ParameterizedType.init(Tuple, types: [:binary_id, :integer, :string])
     assert {:ok, nil} = Ecto.Type.load(type, :my_tuple)
 
     tuple = {Ecto.UUID.generate(), :rand.uniform(1000), :crypto.strong_rand_bytes(20)}
@@ -46,6 +46,17 @@ defmodule Exandra.TupleTest do
     assert {:ok, {1}} == Tuple.cast([1], %{types: [:integer]})
 
     assert {:ok, {1, "a"}} == Tuple.cast({1, "a"}, %{types: [:integer, :string]})
+
+    assert {:ok, {MapSet.new([1]), %{2 => 3}, [4], {5}, 6}} ==
+             Tuple.cast({[1], %{2 => 3}, [4], 5, 6}, %{
+               types: [
+                 {:parameterized, Exandra.Set, %{type: :integer}},
+                 {:parameterized, Exandra.Map, %{key: :integer, value: :integer}},
+                 {:array, :integer},
+                 {:parameterized, Exandra.Tuple, %{types: [:integer]}},
+                 :integer
+               ]
+             })
   end
 
   test "load/2" do
