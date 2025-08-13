@@ -105,9 +105,11 @@ defmodule Exandra.Connection do
   def prepare_execute(cluster, _name, stmt, params, opts) do
     {prepare_opts, execute_opts} = split_prepare_and_execute_options(opts)
 
-    with {:ok, %Prepared{} = prepared} <- @xandra_cluster_mod.prepare(cluster, stmt, prepare_opts) do
-      execute(cluster, prepared, params, execute_opts)
-    end
+    @xandra_cluster_mod.run(cluster, opts, fn conn ->
+      with {:ok, %Prepared{} = prepared} <- @xandra_mod.prepare(conn, stmt, prepare_opts) do
+        do_execute(conn, prepared, params, execute_opts)
+      end
+    end)
   end
 
   @impl Ecto.Adapters.SQL.Connection
@@ -116,20 +118,24 @@ defmodule Exandra.Connection do
     opts = remove_ecto_opts_for_xandra_execute_or_prepare(opts)
 
     @xandra_cluster_mod.run(cluster, opts, fn conn ->
-      case @xandra_mod.execute(conn, query, params, execute_opts) do
-        {:ok, %Xandra.Void{}} ->
-          {:ok, query, %{rows: nil, num_rows: 1}}
-
-        {:ok, %Xandra.SchemaChange{}} ->
-          {:ok, query, %{rows: nil, num_rows: 1}}
-
-        {:ok, %Xandra.Page{} = page} ->
-          stream_pages(conn, query, params, execute_opts, page, %{rows: [], num_rows: 0})
-
-        {:error, error} ->
-          {:error, error}
-      end
+      do_execute(conn, query, params, execute_opts)
     end)
+  end
+
+  defp do_execute(conn, query, params, opts) do
+    case @xandra_mod.execute(conn, query, params, opts) do
+      {:ok, %Xandra.Void{}} ->
+        {:ok, query, %{rows: nil, num_rows: 1}}
+
+      {:ok, %Xandra.SchemaChange{}} ->
+        {:ok, query, %{rows: nil, num_rows: 1}}
+
+      {:ok, %Xandra.Page{} = page} ->
+        stream_pages(conn, query, params, opts, page, %{rows: [], num_rows: 0})
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp stream_pages(conn, query, params, opts, page, acc) do

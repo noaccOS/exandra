@@ -598,14 +598,16 @@ defmodule Exandra do
     {prepare_opts, execute_opts} =
       Exandra.Connection.split_prepare_and_execute_options(opts)
 
-    prepared = @xandra_cluster_mod.prepare!(cluster_pid, sql, prepare_opts)
+    @xandra_cluster_mod.run(cluster_pid, opts, fn conn ->
+      prepared = @xandra_mod.prepare!(conn, sql, prepare_opts)
 
-    @xandra_cluster_mod.stream_pages!(
-      cluster_pid,
-      prepared,
-      values,
-      execute_opts
-    )
+      @xandra_mod.stream_pages!(
+        conn,
+        prepared,
+        values,
+        execute_opts
+      )
+    end)
   end
 end
 
